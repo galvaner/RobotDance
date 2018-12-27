@@ -34,6 +34,28 @@ typedef struct choreography{
 };
 
 
+#include <EEPROM.h>
+#include <Arduino.h>  // for type definitions
+
+template <class T> int EEPROM_write(int ee, const T& value)
+{
+    const byte* p = (const byte*)(const void*)&value;
+    unsigned int i;
+    for (i = 0; i < sizeof(value); i++)
+          EEPROM.write(ee++, *p++);
+    return i;
+}
+
+template <class T> int EEPROM_read(int ee, T& value)
+{
+    byte* p = (byte*)(void*)&value;
+    unsigned int i;
+    for (i = 0; i < sizeof(value); i++)
+          *p++ = EEPROM.read(ee++);
+    return i;
+}
+
+
 // TODO: setEPROM, getEprom (zapis a potom nacitaj choreografiu)
 // zresetovat eepromku,
 //void parse_input_to_coordinate(string input_file){}
@@ -52,15 +74,7 @@ void setup() {
 
 }
 
-**
- * Can contain:
- * starting position:      A1N
- * position without time:  C4 or 4C
- * time:                   T350
- */
-//boolean validateInputToken(char [] chars){
-//   return true;
-//}
+
 
 // initial choreography starts at 0 byte in EEPROM
 // loaded choreography starts at eeprom.length/2 byte in EEPROM
@@ -85,12 +99,23 @@ void ReadDefaultChoreographyFromEEPROM(){
     char startingOrientation;
 }
 
+
+/*
+ * Can contain:
+ * starting position:      A1N
+ * position without time:  C4 or 4C
+ * time:                   T350
+ */
+//boolean validateInputToken(char [] chars){
+//   return true;
+//}
 boolean handleSerial() {
     while (Serial.available() > 0) {
 //        [] cha
-        char incomingCharacter = serial.read();
-        switch(parsing_input_state){
-            case parsing_input_state:
+        char incomingCharacter = Serial.read();
+        parsing_input pis = start_state;
+        switch(pis){
+            case start_state:
                 //mozem citat lubovolne whitespacy, ale akonahle bude char, chod do reading reading_starting_position_state
                 break;
             case reading_starting_position_state:
@@ -99,7 +124,7 @@ boolean handleSerial() {
             case reading_position_state:
                 // citaj chary, ale akonahle je whitespace zvaliduj, a chod bud do reading_time_stat alebo do  malformed_input_state
                 break;
-            case reading_time_stat:
+            case reading_time_state:
                 // citaj chary, ale akonahle je whitespace zvaliduj, a chod do reading_position_state alebo malformed_input_state
                 break;
             case malformed_input_state:
@@ -113,7 +138,8 @@ boolean handleSerial() {
 
 // main loop
 void loop() {
-    switch(robot_state){
+    robot_state rs = waiting_for_start_state;
+    switch(rs){
       case waiting_for_start_state:
           boolean useCustomChoreography; // = handleSerial();
           if(useCustomChoreography){
