@@ -13,12 +13,17 @@ enum turning_direction
   left,
   right
 }
+
+typedef struct choreography{
+  char stratringOrientation;
+  coordinate startingPosition;
+  [] coordinate choreographyArray;   // does not contain starting position!
+}
+
 typedef struct coordinate
   {
-      int number; //x-coordinate
-      char letter; //y-coordinate
-      char heading;
-      bool is_number_first;
+      char first; //x-coordinate
+      char second; //y-coordinate
       unsigned long wait; //when to move next
   };
 
