@@ -24,7 +24,7 @@ enum parsing_input{
 typedef struct coordinate{
     char first; //x-coordinate
     char second; //y-coordinate
-    unsigned long wait; //when to move next
+    unsigned int wait; //when to move next
 };
 
 typedef struct choreography{
@@ -71,32 +71,36 @@ coordinate dance_choreography [100];
 
 void setup() {
   // TODO: reset eeprom and write default dance here to eeprom
-
+  Serial.begin(115200);
+  ReadDefaultChoreographyFromEEPROM();
 }
 
+// end of instruction mark
+coordinate eoi_mark = {'q', 'q', 0};
 
-
-// initial choreography starts at 0 byte in EEPROM
-// loaded choreography starts at eeprom.length/2 byte in EEPROM
-void LoadInitialChoreographyToEEPROM(){
-    int number_of_default_instructions = 2;
-    char startingOrientation = 'N';
-    coordinate startingPosition = {'C', '0', 0};
-    coordinate instructions[number_of_default_instructions] = {
-        {'A', '1', 125},
-        {'2', 'B', 269}
-      };
-    int writing_byte = 1;
-    writing_byte = EEPROM_write(writing_byte, startingOrientation);
-    writing_byte = EEPROM_write(writing_byte, startingPosition);
-    for(int i=0; i<number_of_default_instructions; i++){
-        writing_byte = EEPROM_write(writing_byte, instructions[i]);
-    }
+void PrintCoordinate(coordinate coord){
+  Serial.print(coord.first);
+  Serial.print(' ');
+  Serial.print(coord.second);
+  Serial.print(' ');
+  Serial.print(coord.wait);
+  Serial.println(' ');
 }
 
 void ReadDefaultChoreographyFromEEPROM(){
     int reading_byte = 1;
     char startingOrientation;
+    reading_byte += EEPROM_read(reading_byte, startingOrientation);
+    Serial.print(reading_byte);
+    Serial.println("reading starting orientation");
+    Serial.println(startingOrientation);
+    coordinate current_coordinate = {'a','a',0};
+    while(current_coordinate.first != eoi_mark.first && current_coordinate.second != eoi_mark.second){
+        Serial.println("reading coordinate...");
+        reading_byte += EEPROM_read(reading_byte, current_coordinate);
+        Serial.print(reading_byte);
+        PrintCoordinate(current_coordinate);
+    }
 }
 
 
@@ -138,6 +142,11 @@ boolean handleSerial() {
 
 // main loop
 void loop() {
+     //SaveInitialChoreographyToEEPROM();
+     //ReadDefaultChoreographyFromEEPROM();
+     //Serial.println("ahoj");
+
+  
     robot_state rs = waiting_for_start_state;
     switch(rs){
       case waiting_for_start_state:
