@@ -6,12 +6,12 @@ enum robot_state
   doing_choreography_state,
   choreography_done_state,
   returning_to_start_state
-}
+};
 
 enum turning_direction{
   left,
   right
-}
+};
 
 enum parsing_input{
   start_state,
@@ -19,7 +19,7 @@ enum parsing_input{
   reading_position_state,
   reading_time_state,
   malformed_input_state
-}
+};
 
 typedef struct coordinate{
     char first; //x-coordinate
@@ -45,7 +45,7 @@ typedef struct choreography{
 parsing_input parsing_input_state;
 coordinate start_position;
 coordinate current_position;
-coordinate [] dance_choreography;
+coordinate dance_choreography [100];
 
 void setup() {
   // TODO: reset eeprom and write default dance here to eeprom
