@@ -65,9 +65,9 @@ void loop() {
           break;
       case doing_choreography_state:
           break;
-      case choreography_done_state
+      case choreography_done_state:
           break;
-      case returning_to_start_state
+      case returning_to_start_state:
           break;         
     }
 }
