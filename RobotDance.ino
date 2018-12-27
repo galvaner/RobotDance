@@ -8,8 +8,7 @@ enum robot_state
   returning_to_start_state
 }
 
-enum turning_direction
-{
+enum turning_direction{
   left,
   right
 }
@@ -25,13 +24,13 @@ enum parsing_input{
 typedef struct coordinate{
     char first; //x-coordinate
     char second; //y-coordinate
-//    unsigned long wait; //when to move next
+    unsigned long wait; //when to move next
 };
 
 typedef struct choreography{
   char stratringOrientation;
   coordinate startingPosition;
-  coordinate [] choreographyArray;   // does not contain starting position!
+  coordinate choreographyArray [];   // does not contain starting position!
 };
 
 
@@ -68,7 +67,7 @@ boolean handleSerial() {
     while (Serial.available() > 0) {
 //        [] cha
         char incomingCharacter = serial.read();
-        switch(robot_state){
+        switch(parsing_input_state){
             case parsing_input_state:
                 //mozem citat lubovolne whitespacy, ale akonahle bude char, chod do reading reading_starting_position_state
                 break;
@@ -94,7 +93,7 @@ boolean handleSerial() {
 void loop() {
     switch(robot_state){
       case waiting_for_start_state:
-          boolean useCustomChoreography = handleSerial();
+          boolean useCustomChoreography; // = handleSerial();
           if(useCustomChoreography){
             // do dance with custom choreography
           }
