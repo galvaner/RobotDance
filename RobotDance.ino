@@ -58,6 +58,7 @@ void handleSerial() {
  }
 }
 
+// main loop
 void loop() {
     switch(robot_state){
       case waiting_for_start_state:
