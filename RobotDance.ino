@@ -52,8 +52,7 @@ void setup() {
 
 }
 
-
-/**
+**
  * Can contain:
  * starting position:      A1N
  * position without time:  C4 or 4C
@@ -62,6 +61,29 @@ void setup() {
 //boolean validateInputToken(char [] chars){
 //   return true;
 //}
+
+// initial choreography starts at 0 byte in EEPROM
+// loaded choreography starts at eeprom.length/2 byte in EEPROM
+void LoadInitialChoreographyToEEPROM(){
+    int number_of_default_instructions = 2;
+    char startingOrientation = 'N';
+    coordinate startingPosition = {'C', '0', 0};
+    coordinate instructions[number_of_default_instructions] = {
+        {'A', '1', 125},
+        {'2', 'B', 269}
+      };
+    int writing_byte = 1;
+    writing_byte = EEPROM_write(writing_byte, startingOrientation);
+    writing_byte = EEPROM_write(writing_byte, startingPosition);
+    for(int i=0; i<number_of_default_instructions; i++){
+        writing_byte = EEPROM_write(writing_byte, instructions[i]);
+    }
+}
+
+void ReadDefaultChoreographyFromEEPROM(){
+    int reading_byte = 1;
+    char startingOrientation;
+}
 
 boolean handleSerial() {
     while (Serial.available() > 0) {
@@ -79,14 +101,14 @@ boolean handleSerial() {
                 break;
             case reading_time_stat:
                 // citaj chary, ale akonahle je whitespace zvaliduj, a chod do reading_position_state alebo malformed_input_state
-                break;    
+                break;
             case malformed_input_state:
                 // prestan citat zo serial liny
-                break;    
+                break;
         }
    }
 
-   
+
 }
 
 // main loop
@@ -100,13 +122,13 @@ void loop() {
           else{
             // do dance with default choreography
           }
-          
+
           break;
       case doing_choreography_state:
           break;
       case choreography_done_state:
           break;
       case returning_to_start_state:
-          break;         
+          break;
     }
 }
