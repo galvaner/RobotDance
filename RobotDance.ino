@@ -14,9 +14,8 @@ enum turning_direction{
 };
 
 enum parsing_input{
-  start_state,
-  reading_starting_position_state,
-  reading_position_state,
+  reading_starting_coordinate_state,
+  reading_coordinate_state,
   reading_time_state,
   malformed_input_state
 };
@@ -26,13 +25,6 @@ typedef struct coordinate{
     char second; //y-coordinate
     unsigned int wait; //when to move next
 };
-
-typedef struct choreography{
-  char stratringOrientation;
-  coordinate startingPosition;
-  coordinate choreographyArray [];   // does not contain starting position!
-};
-
 
 #include <EEPROM.h>
 #include <Arduino.h>  // for type definitions
@@ -55,7 +47,6 @@ template <class T> int EEPROM_read(int ee, T& value)
     return i;
 }
 
-
 // TODO: setEPROM, getEprom (zapis a potom nacitaj choreografiu)
 // zresetovat eepromku,
 //void parse_input_to_coordinate(string input_file){}
@@ -65,6 +56,7 @@ template <class T> int EEPROM_read(int ee, T& value)
 //void go_to_start_position(){}
 
 parsing_input parsing_input_state;
+char stratringOrientation;
 coordinate start_position;
 coordinate current_position;
 coordinate dance_choreography [100];
@@ -103,33 +95,149 @@ void ReadDefaultChoreographyFromEEPROM(){
     }
 }
 
-
 /*
  * Can contain:
  * starting position:      A1N
  * position without time:  C4 or 4C
  * time:                   T350
  */
-//boolean validateInputToken(char [] chars){
-//   return true;
-//}
+boolean validateInputToken(char token[], parsing_input parse_state){
+    String s="";
+    int i;
+    for(i=1;i<10;i++){
+      if(token[i]=='X'){
+          break;
+      }
+      else{
+        s+=token[i];
+      }
+    }
+//    Serial.print(s);
+//    Serial.print(" ");
+//    Serial.print(parse_state);
+//    Serial.println();
+  
+   return true;
+}
+
 boolean handleSerial() {
+    parsing_input parsing_state = reading_starting_coordinate_state;
+    boolean ignoreWhiteSpacesAtStart=true;
+    char token[10];
+    byte coordinateNumber=0;
+    byte counter=0;
+
+//    Serial.println("Started parsing input!");
+    
     while (Serial.available() > 0) {
-//        [] cha
+
+        Serial.print(Serial.available());
         char incomingCharacter = Serial.read();
-        parsing_input pis = start_state;
-        switch(pis){
-            case start_state:
-                //mozem citat lubovolne whitespacy, ale akonahle bude char, chod do reading reading_starting_position_state
+        Serial.print(incomingCharacter);
+        Serial.print(Serial.available());
+        switch(parsing_state){
+            case reading_starting_coordinate_state:
+                // 1. zozaciatku ignoruj whitespacy
+                // 2. citaj chary
+                // 3  ked pride dalsi whitespace  zvaliduj position a chod bud do malformed alebo do reading_position_state
+                if (isWhitespace(incomingCharacter)&&ignoreWhiteSpacesAtStart){
+                    //ignore
+                }
+                else if(isAlphaNumeric(incomingCharacter)){
+                    ignoreWhiteSpacesAtStart=false;
+                    token[counter]=incomingCharacter;
+                    counter++;            
+                }
+                else{                                                     // was whitespace after we read first coordinate
+                    boolean validStartingPosition = validateInputToken(token, parsing_state);
+                    if(validStartingPosition && counter==3 ){
+                        start_position.first = token[0];
+                        start_position.second = token[1]; 
+                        start_position.wait = 0;        
+                        stratringOrientation = token[2]; 
+
+                        parsing_state=reading_coordinate_state;
+                        ignoreWhiteSpacesAtStart=true;
+                        counter=0;
+                        memset(token, 0, sizeof(token));
+                    }
+                    else{
+                        parsing_state=malformed_input_state;
+                        return false;
+                    } 
+                }
                 break;
-            case reading_starting_position_state:
-                // citaj chary, ale akonahle bude whitespace, zvaliduj position a chod bud do malformed alebo do reading_position_state
-                break;
-            case reading_position_state:
-                // citaj chary, ale akonahle je whitespace zvaliduj, a chod bud do reading_time_stat alebo do  malformed_input_state
+            case reading_coordinate_state:
+                // 1. zozaciatku ignoruj whitespacy
+                // 2. citaj chary
+                // 3  ked pride dalsi whitespace  zvaliduj position a a chod bud do reading_time_stat alebo do  malformed_input_state
+                if (isWhitespace(incomingCharacter)&&ignoreWhiteSpacesAtStart){
+                    //ignore
+                }
+                else if(isAlphaNumeric(incomingCharacter)){
+                    ignoreWhiteSpacesAtStart=false;
+                    token[counter]=incomingCharacter;
+                    counter++;            
+                }
+                else{                                                     // was whitespace after we read first coordinate
+                    boolean validCoordinate = validateInputToken(token, parsing_state);
+                    if(validCoordinate && counter==2){
+                        dance_choreography[coordinateNumber].first = token[0];
+                        dance_choreography[coordinateNumber].second = token[1];        
+                        
+                        parsing_state=reading_time_state;
+                        ignoreWhiteSpacesAtStart=true;
+                        counter=0;
+                        memset(token, 'X', sizeof(token));
+                    }
+                    else{
+                        parsing_state=malformed_input_state;
+                        return false;
+                    } 
+                }
                 break;
             case reading_time_state:
-                // citaj chary, ale akonahle je whitespace zvaliduj, a chod do reading_position_state alebo malformed_input_state
+                // 1. zozaciatku ignoruj whitespacy
+                // 2. citaj chary
+                // 3  ked pride dalsi whitespace zvaliduj position a a chod bud do reading_coordinate_state alebo do  malformed_input_state
+                if (isWhitespace(incomingCharacter)&&ignoreWhiteSpacesAtStart){
+                    //ignore
+                }
+                else if(isAlphaNumeric(incomingCharacter)){
+                    ignoreWhiteSpacesAtStart=false;
+                    token[counter]=incomingCharacter;
+                    counter++;            
+                }
+                else{                                                     // was whitespace after we read first coordinate
+                    boolean validCoordinate = validateInputToken(token, parsing_state);
+                    if(validCoordinate ){
+                        // token looks like T350 or T1250
+                        int i;
+                        String s="";
+                        for(i=1;i<10;i++){
+                          if(token[i]=='X'){
+                              break;
+                          }
+                          else{
+                            s+=token[i];
+                          }
+                        }
+                        unsigned int waitTime= (unsigned int) s.toInt();
+                        dance_choreography[coordinateNumber].wait = waitTime;
+                                        
+                        parsing_state=reading_coordinate_state;
+                        ignoreWhiteSpacesAtStart=true;
+                        counter=0;
+                        coordinateNumber++;
+                    }
+                    else{
+                        parsing_state=malformed_input_state;
+                        return false;
+                    } 
+                }
+
+
+                
                 break;
             case malformed_input_state:
                 // prestan citat zo serial liny
@@ -137,7 +245,7 @@ boolean handleSerial() {
         }
    }
 
-
+    return true;
 }
 
 // main loop
@@ -150,12 +258,14 @@ void loop() {
     robot_state rs = waiting_for_start_state;
     switch(rs){
       case waiting_for_start_state:
-          boolean useCustomChoreography; // = handleSerial();
+          boolean useCustomChoreography =  handleSerial();
           if(useCustomChoreography){
             // do dance with custom choreography
+            // use custom
           }
           else{
             // do dance with default choreography
+            // TODO: read dance from EEPROM
           }
 
           break;
