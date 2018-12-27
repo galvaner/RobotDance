@@ -54,11 +54,26 @@ template <class T> int EEPROM_read(int ee, T& value)
 
 // initial choreography starts at 0 byte in EEPROM
 // loaded choreography starts at eeprom.length/2 byte in EEPROM
-//void LoadInitialChoreographyToEEPROM(){
-//    coordinate instructions[] = {
-//        coordinate();
-//      }
-//}
+void LoadInitialChoreographyToEEPROM(){
+    int number_of_default_instructions = 2;
+    char startingOrientation = 'N';
+    coordinate startingPosition = {'C', '0', 0};
+    coordinate instructions[number_of_default_instructions] = {
+        {'A', '1', 125},
+        {'2', 'B', 269}
+      };
+    int writing_byte = 1;
+    writing_byte = EEPROM_write(writing_byte, startingOrientation);
+    writing_byte = EEPROM_write(writing_byte, startingPosition);
+    for(int i=0; i<number_of_default_instructions; i++){
+        writing_byte = EEPROM_write(writing_byte, instructions[i]);        
+    }
+}
+
+void ReadDefaultChoreographyFromEEPROM(){
+    int reading_byte = 1;
+    char startingOrientation;    
+}
 
 // TODO: setEPROM, getEprom (zapis a potom nacitaj choreografiu)
 // zresetovat eepromku,
