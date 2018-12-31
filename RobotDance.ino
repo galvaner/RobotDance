@@ -1,4 +1,15 @@
 // TODO: predpokladame ze ked sa strci kabel, zacina custom dance, a pri vytiahnuti kabla sa zapise do eepromky
+#include <Servo.h>
+class motor : public Servo
+{
+  public:
+   void go(int percentage){
+    if(percentage > 100) percentage = 100;
+    if(percentage < -100) percentage = -100; 
+    writeMicroseconds(1500+percentage*2);
+   }
+  
+};
 
 enum robot_state
 {
@@ -26,6 +37,17 @@ typedef struct coordinate{
     unsigned int wait; //when to move next
 };
 
+int leftSensor,middleSensor,rightSensor, edgeSensors, mostLeftSensor, mostRightSensor;
+motor leftMotor,rightMotor;
+int MotorPower = 30;
+parsing_input parsing_input_state;
+char startingOrientation;
+coordinate start_position;
+coordinate current_position;
+char current_orientation;
+coordinate dance_choreography [100];
+
+
 #include <EEPROM.h>
 #include <Arduino.h>  // for type definitions
 
@@ -47,24 +69,417 @@ template <class T> int EEPROM_read(int ee, T& value)
     return i;
 }
 
-// TODO: setEPROM, getEprom (zapis a potom nacitaj choreografiu)
-// zresetovat eepromku,
-//void parse_input_to_coordinate(string input_file){}
-//void turn_in_place(turning_direction direction, number_of_times){}
-//void go_straight(number_of_fields) {}
-//void go_to_coordinate(coordinate initial_coordinate, coordinate target_coordinate){}
-//void go_to_start_position(){}
+void readSensors()
+{
+    leftSensor = digitalRead(4);
+    middleSensor = digitalRead(5);
+    rightSensor = digitalRead(6);
+    mostLeftSensor = digitalRead(3);
+    mostRightSensor = digitalRead(7);
+}
 
-parsing_input parsing_input_state;
-char stratringOrientation;
-coordinate start_position;
-coordinate current_position;
-coordinate dance_choreography [100];
+void turn_in_place(turning_direction direction){
+    bool turningDone = false;
+    bool isOnWhite = false;
+    bool ignoreMarksWhenTurningStartedMS = 500;
+    unsigned long turningStart = millis();
+    while(!turningDone)
+    {
+        readSensors();
+        if(direction == left){
+            leftMotor.go(-MotorPower);
+            rightMotor.go(-MotorPower);
+            if(middleSensor == 1 && leftSensor == 1 && rightSensor == 1 && millis()-turningStart > ignoreMarksWhenTurningStartedMS){
+                isOnWhite = true;
+            }
+            if(isOnWhite && middleSensor == 0){
+                turningDone = true;
+                // turn just a little bit more to be straight
+                unsigned long timer_start = millis();
+                while(millis() - timer_start < 32){
+                  leftMotor.go(-MotorPower);
+                  rightMotor.go(-MotorPower);
+                }
+            }
+        }
+        if(direction == right){
+            leftMotor.go(MotorPower);
+            rightMotor.go(MotorPower);
+            if(middleSensor == 1 && leftSensor == 1 && rightSensor == 1 && millis()-turningStart > ignoreMarksWhenTurningStartedMS){
+                isOnWhite = true;
+            }
+            if(isOnWhite && middleSensor == 0){
+                turningDone = true;
+                // turn just a little bit more to be straight
+                unsigned long timer_start = millis();
+                while(millis() - timer_start < 32){
+                  leftMotor.go(MotorPower);
+                  rightMotor.go(MotorPower);
+                }
+            }
+        }
+    }
+    leftMotor.go(0);
+    rightMotor.go(0);
+}
+
+void go(int x) {
+    bool isOnWhite = false;
+    int numberOfPassedFields = 0;
+    while(numberOfPassedFields < 1){   
+        readSensors(); 
+        if(middleSensor == 0){
+            // go straight
+            leftMotor.go(MotorPower);
+            rightMotor.go(-MotorPower);
+        }   
+        else{
+            if(leftSensor == 0){
+                //turn left
+                leftMotor.go(MotorPower/3);
+                rightMotor.go(-MotorPower);
+            }
+            else{
+                if(rightSensor == 0){
+                    //turn right
+                    leftMotor.go(MotorPower);
+                    rightMotor.go(-MotorPower/3);
+                }
+                else{
+                    // black line is between sensors
+                    leftMotor.go(MotorPower);
+                    rightMotor.go(-MotorPower);
+                }
+            }
+        }
+        if(mostLeftSensor == 1 && mostRightSensor == 1){
+            isOnWhite = true;
+        }
+        if(isOnWhite = true && (mostLeftSensor == 0 || mostRightSensor == 0)){
+            isOnWhite = false;
+            numberOfPassedFields++;
+        }
+    }
+    // the rotation axis has to be in the crossroads
+    unsigned long timer_start = millis();
+    while(millis() - timer_start < 340){
+        leftMotor.go(MotorPower);
+        rightMotor.go(-MotorPower);
+    }
+    leftMotor.go(0);
+    rightMotor.go(0);
+}
+
+void go_to_coordinate(coordinate target_coordinate){
+    //TODO: do waiting
+    if(target_coordinate.first >= 'A' && target_coordinate.first <= 'Z'){
+        horizontal_move(target_coordinate.first);
+        vertical_move(target_coordinate.second);
+    }
+    else{
+        vertical_move(target_coordinate.first);
+        horizontal_move(target_coordinate.second);
+    }
+}
+
+void turn_light_on(unsigned int timeInMs){
+    unsigned int start = millis();
+    while(millis()-start < timeInMs){
+        digitalWrite(11,1);
+    }
+    digitalWrite(11,0);
+}
+
+void go_to_start_position(){
+    go_to_coordinate(start_position);
+    switch(current_orientation){
+        case 'N':
+            switch(startingOrientation){
+                case 'N':
+                    break;
+                case 'E':
+                    turn_in_place(right);
+                    break;
+                case 'W':
+                    turn_in_place(left);
+                    break;
+                case 'S':
+                    if(get_current_horizontal_position() == 'A'){
+                        turn_in_place(right);
+                        turn_in_place(right);
+                    }
+                    else{
+                        turn_in_place(left);
+                        turn_in_place(left);
+                    }
+                    break;
+            }
+            break;
+        case 'S':
+            switch(startingOrientation){
+                case 'S':
+                    break;
+                case 'W':
+                    turn_in_place(right);
+                    break;
+                case 'E':
+                    turn_in_place(left);
+                    break;
+                case 'N':
+                    if(get_current_horizontal_position() == 'A'){
+                        turn_in_place(left);
+                        turn_in_place(left);
+                    }
+                    else{
+                        turn_in_place(right);
+                        turn_in_place(right);
+                    }
+                    break;
+            }
+            break;
+        case 'W':
+            switch(startingOrientation){
+                case 'W':
+                    break;
+                case 'S':
+                    turn_in_place(right);
+                    break;
+                case 'N':
+                    turn_in_place(left);
+                    break;
+                case 'E':
+                    if(get_current_vertical_position() == '1'){
+                        turn_in_place(right);
+                        turn_in_place(right);
+                    }
+                    else{
+                        turn_in_place(left);
+                        turn_in_place(left);
+                    }
+                    break;
+            }
+            break;
+        case 'E':
+            switch(startingOrientation){
+                case 'E':
+                    break;
+                case 'S':
+                    turn_in_place(left);
+                    break;
+                case 'N':
+                    turn_in_place(right);
+                    break;
+                case 'W':
+                    if(get_current_vertical_position() == '1'){
+                        turn_in_place(left);
+                        turn_in_place(left);
+                    }
+                    else{
+                        turn_in_place(right);
+                        turn_in_place(right);
+                    }
+                    break;
+            }
+            break;
+    }
+    current_orientation = startingOrientation;
+}
+
+void go_steps(int numberOfFieldsToGo){
+    for(int i=0; i < numberOfFieldsToGo; i++){
+        go(1);
+    }
+}
+
+void horizontal_move(char target_position){
+    char current_horizontal_position = get_current_horizontal_position();
+    char current_vertical_position = get_current_vertical_position();
+    if(current_horizontal_position == target_position){
+        return;
+    }
+    if(current_horizontal_position < target_position){
+        //go right 
+        int number_of_steps = target_position - current_horizontal_position;
+        if(current_orientation == 'E'){
+            go_steps(number_of_steps);
+        }
+        if(current_orientation == 'N'){
+            turn_in_place(right);
+            current_orientation = 'E';
+            go_steps(number_of_steps);
+        }
+        if(current_orientation == 'S'){
+            turn_in_place(left);
+            current_orientation = 'E';
+            go_steps(number_of_steps);
+        }
+        if(current_orientation == 'W'){
+            if(current_vertical_position == '1'){
+                turn_in_place(right);
+                turn_in_place(right);
+                current_orientation = 'E';
+                go_steps(number_of_steps);
+            }
+            else{
+                turn_in_place(left);
+                turn_in_place(left);
+                current_orientation = 'E';
+                go_steps(number_of_steps);
+            }            
+        }
+    }
+    if(current_horizontal_position > target_position){
+        //go left
+        int number_of_steps = current_horizontal_position - target_position;
+        if(current_orientation == 'W'){
+            go_steps(number_of_steps);
+        }
+        if(current_orientation == 'S'){
+            turn_in_place(right);
+            current_orientation = 'W';
+            go_steps(number_of_steps);
+        }
+        if(current_orientation == 'N'){
+            turn_in_place(left);
+            current_orientation = 'W';
+            go_steps(number_of_steps);
+        }
+        if(current_orientation == 'E'){
+            if(current_vertical_position == '1'){
+                turn_in_place(left);
+                turn_in_place(left);
+                current_orientation = 'W';
+                go_steps(number_of_steps);
+            }
+            else{
+                turn_in_place(right);
+                turn_in_place(right);
+                current_orientation = 'W';
+                go_steps(number_of_steps);
+            }            
+        }
+    }
+    set_current_horizontal_position(target_position);
+}
+
+void set_current_horizontal_position(char target_position){
+    if(current_position.first >= 'A' && current_position.first <= 'Z'){
+        current_position.first = target_position;
+    }
+    else{
+        current_position.second = target_position;
+    }
+}
+
+char get_current_horizontal_position(){
+    if(current_position.first >= 'A' && current_position.first <= 'Z'){
+        return current_position.first;
+    }
+    else{
+        return current_position.second;
+    }
+}
+
+void vertical_move(char target_position){
+    char current_horizontal_position = get_current_horizontal_position();
+    char current_vertical_position = get_current_vertical_position();
+    if(current_vertical_position == target_position){
+        return;
+    }
+    if(current_vertical_position < target_position){
+        //go up 
+        int number_of_steps = target_position - current_vertical_position;
+        if(current_orientation == 'N'){
+            go_steps(number_of_steps);
+        }
+        if(current_orientation == 'W'){
+            turn_in_place(right);
+            current_orientation = 'N';
+            go_steps(number_of_steps);
+        }
+        if(current_orientation == 'E'){
+            turn_in_place(left);
+            current_orientation = 'N';
+            go_steps(number_of_steps);
+        }
+        if(current_orientation == 'S'){
+            if(current_horizontal_position == 'A'){
+                turn_in_place(left);
+                turn_in_place(left);
+                current_orientation = 'N';
+                go_steps(number_of_steps);
+            }
+            else{
+                turn_in_place(right);
+                turn_in_place(right);
+                current_orientation = 'N';
+                go_steps(number_of_steps);
+            }            
+        }
+    }
+    if(current_vertical_position > target_position){
+        //go dowm
+        int number_of_steps = current_vertical_position - target_position;
+        if(current_orientation == 'S'){
+            go_steps(number_of_steps);
+        }
+        if(current_orientation == 'E'){
+            turn_in_place(right);
+            current_orientation = 'S';
+            go_steps(number_of_steps);
+        }
+        if(current_orientation == 'W'){
+            turn_in_place(left);
+            current_orientation = 'S';
+            go_steps(number_of_steps);
+        }
+        if(current_orientation == 'N'){
+            if(current_horizontal_position == 'A'){
+                turn_in_place(right);
+                turn_in_place(right);
+                current_orientation = 'S';
+                go_steps(number_of_steps);
+            }
+            else{
+                turn_in_place(left);
+                turn_in_place(left);
+                current_orientation = 'S';
+                go_steps(number_of_steps);
+            }            
+        }
+    }
+    set_current_vertical_position(target_position);
+}
+
+void set_current_vertical_position(char target_position){
+    if(current_position.first >= '1' && current_position.first <= '9'){
+        current_position.first = target_position;
+    }
+    else{
+        current_position.second = target_position;
+    }
+}
+
+char get_current_vertical_position(){
+    if(current_position.first >= '1' && current_position.first <= '9'){
+        return current_position.first;
+    }
+    else{
+        return current_position.second;
+    }
+}
 
 void setup() {
-  // TODO: reset eeprom and write default dance here to eeprom
   Serial.begin(115200);
   ReadDefaultChoreographyFromEEPROM();
+  leftMotor.attach(12,500,2500);
+  rightMotor.attach(13,500,2500);
+  pinMode(3,INPUT);
+  pinMode(4,INPUT);
+  pinMode(5,INPUT);
+  pinMode(6,INPUT);
+  pinMode(7,INPUT);
+  pinMode(11,OUTPUT);
 }
 
 // end of instruction mark
@@ -154,7 +569,7 @@ boolean handleSerial() {
                         start_position.first = token[0];
                         start_position.second = token[1]; 
                         start_position.wait = 0;        
-                        stratringOrientation = token[2]; 
+                        startingOrientation = token[2]; 
 
                         parsing_state=reading_coordinate_state;
                         ignoreWhiteSpacesAtStart=true;
@@ -248,11 +663,50 @@ boolean handleSerial() {
     return true;
 }
 
+bool doIt = true;
 // main loop
 void loop() {
-     //SaveInitialChoreographyToEEPROM();
-     //ReadDefaultChoreographyFromEEPROM();
-     //Serial.println("ahoj");
+  int wait = 100;
+    if(doIt)
+    {
+        //start_position = {'1', 'A', 0};
+        //startingOrientation = 'S';
+        //current_orientation = 'S';
+        //current_position = {'1', 'A', 0};
+        //go_to_coordinate({'3','C'}); //chyba
+        //return;        
+        //go_steps(1);
+        //turn_in_place(left);
+        //turn_in_place(left);
+        //current_orientation = 'S';
+        //go_steps(1);
+        //return;
+        turn_light_on(1000);
+        start_position = {'1', 'A', 0};
+        startingOrientation = 'W';
+        current_orientation = 'W';
+        current_position = {'1', 'A', 0};
+        go_to_coordinate({'B','3'});
+        turn_light_on(3000);
+        go_to_coordinate({'1','C'});
+        turn_light_on(3000);
+        go_to_coordinate({'3','C'});
+        turn_light_on(3000);
+        go_to_coordinate({'C','2'});
+        turn_light_on(3000);
+        go_to_coordinate({'B','3'});
+        turn_light_on(3000);
+        go_to_coordinate({'A','3'});
+        turn_light_on(3000);
+        go_to_coordinate({'1','A'});
+        turn_light_on(3000);
+        go_to_coordinate({'3','C'}); //chyba
+        turn_light_on(3000);
+        go_to_start_position();
+        
+    }
+     doIt = false;
+     return;
 
   
     robot_state rs = waiting_for_start_state;
