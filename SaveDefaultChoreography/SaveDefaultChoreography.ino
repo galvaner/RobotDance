@@ -43,13 +43,13 @@ void SaveInitialChoreographyToEEPROM(){
     char startingOrientation = 'W';
     coordinate startingPosition = {'1', 'A', 0};
     coordinate instructions[number_of_default_instructions] = {
-        {'B','3', 100},
-        {'1','C', 200},
-        {'3','C', 300},
-        {'C','2', 400},
-        {'B','3', 500},
-        {'A','3', 600},
-        {'1','A', 700},
+        {'B','3', 70},
+        {'1','C', 140},
+        {'3','C', 210},
+        {'C','2', 280},
+        {'B','3', 350},
+        {'A','3', 420},
+        {'1','A', 490},
         {'3','C', 800}
       };
     int writing_byte = 0;

@@ -108,15 +108,18 @@ void readSensors()
 void turn_in_place(turning_direction direction){
     bool turningDone = false;
     bool isOnWhite = false;
-    bool ignoreMarksWhenTurningStartedMS = 500;
+    int ignoreMarksWhenTurningStartedMS = 300;
     unsigned long turningStart = millis();
     while(!turningDone)
     {
+        if(isOnWhite){
+            digitalWrite(11,1);
+        }
         readSensors();
         if(direction == left){
             leftMotor.go(-MotorPower);
             rightMotor.go(-MotorPower);
-            if(middleSensor == 1 && leftSensor == 1 && rightSensor == 1 && millis()-turningStart > ignoreMarksWhenTurningStartedMS){
+            if(middleSensor == 1 && leftSensor == 1 && rightSensor == 1 && ((millis()-turningStart) > ignoreMarksWhenTurningStartedMS)){
                 isOnWhite = true;
             }
             if(isOnWhite && middleSensor == 0){
@@ -132,7 +135,7 @@ void turn_in_place(turning_direction direction){
         if(direction == right){
             leftMotor.go(MotorPower);
             rightMotor.go(MotorPower);
-            if(middleSensor == 1 && leftSensor == 1 && rightSensor == 1 && millis()-turningStart > ignoreMarksWhenTurningStartedMS){
+            if(middleSensor == 1 && leftSensor == 1 && rightSensor == 1 && ((millis()-turningStart) > ignoreMarksWhenTurningStartedMS)){
                 isOnWhite = true;
             }
             if(isOnWhite && middleSensor == 0){
@@ -148,6 +151,7 @@ void turn_in_place(turning_direction direction){
     }
     leftMotor.go(0);
     rightMotor.go(0);
+    digitalWrite(11,0);
 }
 
 void go(int x) {
@@ -163,14 +167,14 @@ void go(int x) {
         else{
             if(leftSensor == 0){
                 //turn left
-                leftMotor.go(MotorPower/3);
+                leftMotor.go(MotorPower/5);
                 rightMotor.go(-MotorPower);
             }
             else{
                 if(rightSensor == 0){
                     //turn right
                     leftMotor.go(MotorPower);
-                    rightMotor.go(-MotorPower/3);
+                    rightMotor.go(-MotorPower/5);
                 }
                 else{
                     // black line is between sensors
@@ -190,8 +194,33 @@ void go(int x) {
     // the rotation axis has to be in the crossroads
     unsigned long timer_start = millis();
     while(millis() - timer_start < 340){
-        leftMotor.go(MotorPower);
-        rightMotor.go(-MotorPower);
+        //leftMotor.go(MotorPower);
+        //rightMotor.go(-MotorPower);
+        readSensors(); 
+        if(middleSensor == 0){
+            // go straight
+            leftMotor.go(MotorPower);
+            rightMotor.go(-MotorPower);
+        }   
+        else{
+            if(leftSensor == 0){
+                //turn left
+                leftMotor.go(MotorPower/5);
+                rightMotor.go(-MotorPower);
+            }
+            else{
+                if(rightSensor == 0){
+                    //turn right
+                    leftMotor.go(MotorPower);
+                    rightMotor.go(-MotorPower/5);
+                }
+                else{
+                    // black line is between sensors
+                    leftMotor.go(MotorPower);
+                    rightMotor.go(-MotorPower);
+                }
+            }
+        }
     }
     leftMotor.go(0);
     rightMotor.go(0);
@@ -209,14 +238,6 @@ void go_to_coordinate(coordinate target_coordinate){
     if(millis()-starting_time < target_coordinate.wait * 100){
         delay(target_coordinate.wait * 100 - millis()-starting_time);
     }
-}
-
-void turn_light_on(unsigned int timeInMs){
-    unsigned int start = millis();
-    while(millis()-start < timeInMs){
-        digitalWrite(11,1);
-    }
-    digitalWrite(11,0);
 }
 
 void go_to_start_position(){
@@ -863,6 +884,14 @@ int select_choreography(){
     }
 }
 
+void turn_light_on(int timeInMs){
+    unsigned int start = millis();
+    while((millis()-start) < timeInMs){
+        digitalWrite(11,1);
+    }
+    digitalWrite(11,0);
+}
+
 // expects already written choreography in EEPROM 
 void start_dancing(){
     int reading_byte = select_choreography();
@@ -878,67 +907,23 @@ void start_dancing(){
     Serial.println("start position...");
     PrintCoordinate(start_position);
     current_position= current_coordinate;
+    reading_byte += EEPROM_read(reading_byte, current_coordinate);
     // read dance
     while(current_coordinate.first != eoi_mark.first && current_coordinate.second != eoi_mark.second){
+        Serial.println(" strart roling....");
+        go_to_coordinate(current_coordinate);
         Serial.println("reading coordinate...");
         reading_byte += EEPROM_read(reading_byte, current_coordinate);
         //Serial.print(reading_byte);
-        PrintCoordinate(current_coordinate);
-        Serial.println(" srart roling....");
-        go_to_coordinate(current_coordinate);
+        PrintCoordinate(current_coordinate);        
     }
+    leftMotor.go(0);
+    rightMotor.go(0);
 }
 
 bool doIt = true;
 // main loop
 void loop() {
-
- 
-  
-//  int wait = 100;
-  //ReadDefaultChoreographyFromEEPROM();
-//  start_dancing();
-    //if(doIt)
-    //{
-        //start_position = {'1', 'A', 0};
-        //startingOrientation = 'S';
-        //current_orientation = 'S';
-        //current_position = {'1', 'A', 0};
-        //go_to_coordinate({'3','C'}); //chyba
-        //return;        
-        //go_steps(1);
-        //turn_in_place(left);
-        //turn_in_place(left);
-        //current_orientation = 'S';
-        //go_steps(1);
-        //return;
-        //turn_light_on(1000);
-        //start_position = {'1', 'A', 0};
-        //startingOrientation = 'W';
-        //current_orientation = 'W';
-        //current_position = {'1', 'A', 0};
-        //go_to_coordinate({'B','3', 100});
-        //turn_light_on(1000);
-        //go_to_coordinate({'1','C', 200});
-        //turn_light_on(1000);
-        //go_to_coordinate({'3','C', 300});
-        //turn_light_on(1000);
-        //go_to_coordinate({'C','2', 400});
-        //turn_light_on(1000);
-        //go_to_coordinate({'B','3', 500});
-        //turn_light_on(1000);
-        //go_to_coordinate({'A','3', 600});
-        //turn_light_on(1000);
-        //go_to_coordinate({'1','A', 700});
-        //turn_light_on(1000);
-        //go_to_coordinate({'3','C', 800});
-        //turn_light_on(1000);
-        //go_to_start_position();        
-     //}
-     //doIt = false;
-//     return;
-
-    
     switch(robot_state){
       
       
@@ -952,14 +937,14 @@ void loop() {
           break;
       case doing_choreography_state:
           Serial.println("doing_choreography_state");
-            //TODO:  start_dancing()?
+            start_dancing();
           break;
       case choreography_done_state:
           Serial.println("choreography_done_state");
           
           if(digitalRead(2)==0){
             robot_state=returning_to_start_state;
-            //TODO: goToStart()
+            go_to_start_position();
           }
           break;
       case returning_to_start_state:
