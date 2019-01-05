@@ -120,6 +120,8 @@ boolean validateInputToken(char token[], parsing_input parse_state){
    return true;
 }
 
+
+
 boolean handleSerial() {
     parsing_input parsing_state = reading_starting_coordinate_state;
     boolean ignoreWhiteSpacesAtStart=true;
