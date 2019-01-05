@@ -52,6 +52,8 @@ parsing_input parsing_state;
 
 unsigned int pointer_at_current_custom_choreography_byte = 512;
 
+coordinate new_coordinate;
+
 
 
 
@@ -235,8 +237,9 @@ void go_to_coordinate(coordinate target_coordinate){
         vertical_move(target_coordinate.first);
         horizontal_move(target_coordinate.second);
     }
-    if(millis()-starting_time < target_coordinate.wait * 100){
-        delay(target_coordinate.wait * 100 - millis()-starting_time);
+    while(millis()-starting_time < target_coordinate.wait * 100){
+//        delay(target_coordinate.wait * 100 - millis()-starting_time);
+        int k = 0;
     }
 }
 
@@ -641,7 +644,7 @@ boolean validateTime(char token []){
     boolean isNumber=true;
 
     for(int i=1;i<6;i++){
-        if(token[i]=='\u0000'){
+        if(token[i]=='X'){
             break;
         }
         else{
@@ -703,6 +706,7 @@ boolean handleSerial() {
     byte coordinateNumber=0;
     byte counter=0;
 
+
     Serial.println("Started parsing input!");
 
     while (Serial.available() > 0) { 
@@ -726,6 +730,7 @@ boolean handleSerial() {
                     if(validStartingPosition && counter==3 ){
 
                         coordinate start_position_new;
+                        start_position_new.wait=0;
                         
                         token[0] = upperCase(token[0]); 
                         start_position_new.first= token[0];
@@ -736,6 +741,7 @@ boolean handleSerial() {
                         char starting_orientation_new = upperCase(token[2]);
                         
                         pointer_at_current_custom_choreography_byte += EEPROM_write(pointer_at_current_custom_choreography_byte, starting_orientation_new);
+                        
                         pointer_at_current_custom_choreography_byte += EEPROM_write(pointer_at_current_custom_choreography_byte, start_position_new);
                           
                         
@@ -744,9 +750,9 @@ boolean handleSerial() {
                         ignoreWhiteSpacesAtStart=true;
                         counter=0;
 
+                        EEPROM_write(0,true);
                         
-                        
-                        memset(token, '\0', sizeof(token));
+                        memset(token, 'X', sizeof(token));
                         
                         //TODO: clear array
 //                        token= new char[10];
@@ -775,14 +781,11 @@ boolean handleSerial() {
                 else{                                                     // was whitespace after we read first coordinate
                     boolean validCoordinate = validateInputToken(token, parsing_state);
                     if(validCoordinate && counter==2){
-                        coordinate new_coordinate;
-                        
+                                               
                         token[0] = upperCase(token[0]); 
                         new_coordinate.first = token[0];
                         token[1] = upperCase(token[1]); 
                         new_coordinate.second = token[1];
-
-                        pointer_at_current_custom_choreography_byte += EEPROM_write(pointer_at_current_custom_choreography_byte, new_coordinate.second);
 
                         parsing_state=reading_time_state;
                         ignoreWhiteSpacesAtStart=true;
@@ -790,7 +793,7 @@ boolean handleSerial() {
 //                            memset(token, 'X', sizeof(token));
                         //TODO: clear array
 //                        token= new char[10];
-                        memset(token, '\0', sizeof(token));
+                        memset(token, 'X', sizeof(token));
                     }
                     else{
                         parsing_state=malformed_input_state;
@@ -815,31 +818,37 @@ boolean handleSerial() {
                 else{                                                     // was whitespace after we read first coordinate
                     // TODO: ako vie validate aky je dlhy token array?
                     boolean validCoordinate = validateInputToken(token, parsing_state);
+                    Serial.print("is validTime?"); Serial.println(validCoordinate);
                     if(validCoordinate ){
                         // token looks like T350 or T1250
                         int i;
                         String s="";
                         for(i=1;i<6;i++){
-                            if(token[i]=='\u0000'){
+                            if(token[i]=='X'){
                                 break;
                             }
                             else{
                                 s+=token[i];
                             }
                         }
-                    
-//                         int waitTime= ( int) Integer.parseInt(s);
-                         unsigned int waitTime= (unsigned int) s.toInt();
-                        dance_choreography[coordinateNumber].wait = waitTime;
+                        
+                        unsigned int waitTime= (unsigned int) s.toInt();
+                        new_coordinate.wait = waitTime;
+          
+
+                        pointer_at_current_custom_choreography_byte += EEPROM_write(pointer_at_current_custom_choreography_byte, new_coordinate);
+                        
+                        EEPROM_write(pointer_at_current_custom_choreography_byte,eoi_mark);
+                       
 
                         parsing_state=reading_coordinate_state;
                         ignoreWhiteSpacesAtStart=true;
                         counter=0;
-                        coordinateNumber++;
+//                        coordinateNumber++;
                         
 
 //                        memset(token, 'X', sizeof(token));
-                        memset(token, '\0', sizeof(token));
+                        memset(token, 'X', sizeof(token));
 //                        token= new char[10];
                     }
                     else{
@@ -934,7 +943,9 @@ void loop() {
           break;
       case doing_choreography_state:
           Serial.println("doing_choreography_state");
-            start_dancing();
+          starting_time=millis();
+          start_dancing();
+          robot_state=choreography_done_state;
           break;
       case choreography_done_state:
           Serial.println("choreography_done_state");
@@ -942,6 +953,7 @@ void loop() {
           if(digitalRead(2)==0){
             robot_state=returning_to_start_state;
             go_to_start_position();
+            robot_state=waiting_for_start_state;
           }
           break;
       case returning_to_start_state:
@@ -949,5 +961,5 @@ void loop() {
           break;
     }
 
-    delay(2000);
+//   delay(2000);
 }
