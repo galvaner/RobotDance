@@ -240,32 +240,54 @@ void go_to_coordinate(coordinate target_coordinate){
         horizontal_move(target_coordinate.second);
     }
     while(millis()-starting_time < target_coordinate.wait * 100){
-//        delay(target_coordinate.wait * 100 - millis()-starting_time);
-        int k = 0;
+        leftMotor.go(0);
+        rightMotor.go(0);
     }
 }
 
+void turn_in_place_90(turning_direction dir){
+    int turningTime = 720;
+    if(dir == left){
+        unsigned long timer_start = millis();
+                while(millis() - timer_start < turningTime){
+                  leftMotor.go(-MotorPower);
+                  rightMotor.go(-MotorPower);
+                }
+    }
+    if(dir == right){
+        unsigned long timer_start = millis();
+                while(millis() - timer_start < turningTime){
+                  leftMotor.go(MotorPower);
+                  rightMotor.go(MotorPower);
+                }
+    }
+    leftMotor.go(0);
+    rightMotor.go(0);
+}
+
+
 void go_to_start_position(){
     go_to_coordinate(start_position);
+    // default positioning
     switch(current_orientation){
         case 'N':
             switch(startingOrientation){
                 case 'N':
                     break;
                 case 'E':
-                    turn_in_place(right);
+                    turn_in_place_90(right);
                     break;
                 case 'W':
-                    turn_in_place(left);
+                    turn_in_place_90(left);
                     break;
                 case 'S':
                     if(get_current_horizontal_position() == 'A'){
-                        turn_in_place(right);
-                        turn_in_place(right);
+                        turn_in_place_90(right);
+                        turn_in_place_90(right);
                     }
                     else{
-                        turn_in_place(left);
-                        turn_in_place(left);
+                        turn_in_place_90(left);
+                        turn_in_place_90(left);
                     }
                     break;
             }
@@ -275,19 +297,19 @@ void go_to_start_position(){
                 case 'S':
                     break;
                 case 'W':
-                    turn_in_place(right);
+                    turn_in_place_90(right);
                     break;
                 case 'E':
-                    turn_in_place(left);
+                    turn_in_place_90(left);
                     break;
                 case 'N':
                     if(get_current_horizontal_position() == 'A'){
-                        turn_in_place(left);
-                        turn_in_place(left);
+                        turn_in_place_90(left);
+                        turn_in_place_90(left);
                     }
                     else{
-                        turn_in_place(right);
-                        turn_in_place(right);
+                        turn_in_place_90(right);
+                        turn_in_place_90(right);
                     }
                     break;
             }
@@ -297,19 +319,19 @@ void go_to_start_position(){
                 case 'W':
                     break;
                 case 'S':
-                    turn_in_place(left);
+                    turn_in_place_90(left);
                     break;
                 case 'N':
-                    turn_in_place(right);
+                    turn_in_place_90(right);
                     break;
                 case 'E':
                     if(get_current_vertical_position() == '1'){
-                        turn_in_place(right);
-                        turn_in_place(right);
+                        turn_in_place_90(right);
+                        turn_in_place_90(right);
                     }
                     else{
-                        turn_in_place(left);
-                        turn_in_place(left);
+                        turn_in_place_90(left);
+                        turn_in_place_90(left);
                     }
                     break;
             }
@@ -319,19 +341,19 @@ void go_to_start_position(){
                 case 'E':
                     break;
                 case 'S':
-                    turn_in_place(right);
+                    turn_in_place_90(right);
                     break;
                 case 'N':
-                    turn_in_place(left);
+                    turn_in_place_90(left);
                     break;
                 case 'W':
                     if(get_current_vertical_position() == '1'){
-                        turn_in_place(left);
-                        turn_in_place(left);
+                        turn_in_place_90(left);
+                        turn_in_place_90(left);
                     }
                     else{
-                        turn_in_place(right);
-                        turn_in_place(right);
+                        turn_in_place_90(right);
+                        turn_in_place_90(right);
                     }
                     break;
             }
@@ -435,6 +457,15 @@ char get_current_horizontal_position(){
     }
 }
 
+char get_start_horizontal_position(){
+    if(start_position.first >= 'A' && start_position.first <= 'Z'){
+        return start_position.first;
+    }
+    else{
+        return start_position.second;
+    }
+}
+
 void vertical_move(char target_position){
     char current_horizontal_position = get_current_horizontal_position();
     char current_vertical_position = get_current_vertical_position();
@@ -524,6 +555,14 @@ char get_current_vertical_position(){
     }
 }
 
+char get_start_vertical_position(){
+    if(start_position.first >= '1' && start_position.first <= '9'){
+        return start_position.first;
+    }
+    else{
+        return start_position.second;
+    }
+}
 
 // end of instruction mark
 coordinate eoi_mark = {'q', 'q', 0};
