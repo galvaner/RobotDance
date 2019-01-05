@@ -96,6 +96,8 @@ void setup() {
 
   robot_state = waiting_for_start_state;
   parsing_input parsing_state = reading_starting_coordinate_state;
+
+  EEPROM_write(0,false);
 }
 
 void readSensors()
@@ -691,7 +693,7 @@ boolean validateInputToken(char token[], parsing_input parsing_state){
 Uppercases char if it is lower case letter. If number it lets it be.
  */
 char upperCase(char c){
-    if((c>='a' && c<='i')) {
+    if((c>='a' && c<='z')) {
         return  (char)(c-32);
 
     }
@@ -738,12 +740,15 @@ boolean handleSerial() {
                         token[1] = upperCase(token[1]); 
                         start_position_new.second=  token[1];
                                                 
-                        char starting_orientation_new = upperCase(token[2]);
+                        char starting_orientation_new = (char)( token[2]-32);;
                         
                         pointer_at_current_custom_choreography_byte += EEPROM_write(pointer_at_current_custom_choreography_byte, starting_orientation_new);
                         
                         pointer_at_current_custom_choreography_byte += EEPROM_write(pointer_at_current_custom_choreography_byte, start_position_new);
-                          
+
+                        Serial.print(start_position_new.first); Serial.print(" ");
+                        Serial.print(start_position_new.second); Serial.print(" ");
+                        Serial.print(starting_orientation_new);  Serial.println();
                         
 
                         parsing_state=reading_coordinate_state;
@@ -834,6 +839,10 @@ boolean handleSerial() {
                         
                         unsigned int waitTime= (unsigned int) s.toInt();
                         new_coordinate.wait = waitTime;
+
+                        Serial.print(new_coordinate.first); Serial.print(" ");
+                        Serial.print(new_coordinate.second); Serial.print(" ");
+                        Serial.print(new_coordinate.wait);  Serial.println();
           
 
                         pointer_at_current_custom_choreography_byte += EEPROM_write(pointer_at_current_custom_choreography_byte, new_coordinate);
