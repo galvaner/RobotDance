@@ -46,6 +46,7 @@ coordinate start_position;
 coordinate current_position;
 char current_orientation;
 coordinate dance_choreography [100];
+unsigned long starting_time;
 
 
 #include <EEPROM.h>
@@ -171,7 +172,6 @@ void go(int x) {
 }
 
 void go_to_coordinate(coordinate target_coordinate){
-    //TODO: do waiting
     if(target_coordinate.first >= 'A' && target_coordinate.first <= 'Z'){
         horizontal_move(target_coordinate.first);
         vertical_move(target_coordinate.second);
@@ -179,6 +179,9 @@ void go_to_coordinate(coordinate target_coordinate){
     else{
         vertical_move(target_coordinate.first);
         horizontal_move(target_coordinate.second);
+    }
+    if(millis()-starting_time < target_coordinate.wait * 100){
+        delay(target_coordinate.wait * 100 - millis()-starting_time);
     }
 }
 
@@ -471,7 +474,7 @@ char get_current_vertical_position(){
 
 void setup() {
   Serial.begin(115200);
-  ReadDefaultChoreographyFromEEPROM();
+  //ReadDefaultChoreographyFromEEPROM();
   leftMotor.attach(12,500,2500);
   rightMotor.attach(13,500,2500);
   pinMode(3,INPUT);
@@ -663,12 +666,55 @@ boolean handleSerial() {
     return true;
 }
 
+// if valid (zero byte set to 1), return byte 512 as addrss of loaded choreography elde return byte 1 as address of default choreography
+int select_choreography(){
+    int reading_byte = 0;
+    bool select_loaded_choreography;
+    EEPROM_read(reading_byte, select_loaded_choreography);
+    Serial.print("Zero byte: ");
+    Serial.println(select_loaded_choreography);
+    if(select_loaded_choreography){
+        return 512;
+    } 
+    else{
+        return 1;
+    }
+}
+
+// expects already written choreography in EEPROM 
+void start_dancing(){
+    int reading_byte = select_choreography();
+    reading_byte += EEPROM_read(reading_byte, startingOrientation);
+    current_orientation = startingOrientation;
+    //Serial.print(reading_byte);
+    Serial.println("reading starting orientation");
+    Serial.println(startingOrientation);
+    coordinate current_coordinate = {'a','a',0};
+    // read starting position
+    reading_byte += EEPROM_read(reading_byte, current_coordinate);
+    start_position = current_coordinate;
+    Serial.println("start position...");
+    PrintCoordinate(start_position);
+    current_position= current_coordinate;
+    // read dance
+    while(current_coordinate.first != eoi_mark.first && current_coordinate.second != eoi_mark.second){
+        Serial.println("reading coordinate...");
+        reading_byte += EEPROM_read(reading_byte, current_coordinate);
+        //Serial.print(reading_byte);
+        PrintCoordinate(current_coordinate);
+        Serial.println(" srart roling....");
+        go_to_coordinate(current_coordinate);
+    }
+}
+
 bool doIt = true;
 // main loop
 void loop() {
   int wait = 100;
-    if(doIt)
-    {
+  //ReadDefaultChoreographyFromEEPROM();
+  start_dancing();
+    //if(doIt)
+    //{
         //start_position = {'1', 'A', 0};
         //startingOrientation = 'S';
         //current_orientation = 'S';
@@ -681,31 +727,30 @@ void loop() {
         //current_orientation = 'S';
         //go_steps(1);
         //return;
-        turn_light_on(1000);
-        start_position = {'1', 'A', 0};
-        startingOrientation = 'W';
-        current_orientation = 'W';
-        current_position = {'1', 'A', 0};
-        go_to_coordinate({'B','3'});
-        turn_light_on(3000);
-        go_to_coordinate({'1','C'});
-        turn_light_on(3000);
-        go_to_coordinate({'3','C'});
-        turn_light_on(3000);
-        go_to_coordinate({'C','2'});
-        turn_light_on(3000);
-        go_to_coordinate({'B','3'});
-        turn_light_on(3000);
-        go_to_coordinate({'A','3'});
-        turn_light_on(3000);
-        go_to_coordinate({'1','A'});
-        turn_light_on(3000);
-        go_to_coordinate({'3','C'}); //chyba
-        turn_light_on(3000);
-        go_to_start_position();
-        
-    }
-     doIt = false;
+        //turn_light_on(1000);
+        //start_position = {'1', 'A', 0};
+        //startingOrientation = 'W';
+        //current_orientation = 'W';
+        //current_position = {'1', 'A', 0};
+        //go_to_coordinate({'B','3', 100});
+        //turn_light_on(1000);
+        //go_to_coordinate({'1','C', 200});
+        //turn_light_on(1000);
+        //go_to_coordinate({'3','C', 300});
+        //turn_light_on(1000);
+        //go_to_coordinate({'C','2', 400});
+        //turn_light_on(1000);
+        //go_to_coordinate({'B','3', 500});
+        //turn_light_on(1000);
+        //go_to_coordinate({'A','3', 600});
+        //turn_light_on(1000);
+        //go_to_coordinate({'1','A', 700});
+        //turn_light_on(1000);
+        //go_to_coordinate({'3','C', 800});
+        //turn_light_on(1000);
+        //go_to_start_position();        
+     //}
+     //doIt = false;
      return;
 
   
