@@ -292,10 +292,10 @@ void go_to_start_position(){
                 case 'W':
                     break;
                 case 'S':
-                    turn_in_place(right);
+                    turn_in_place(left);
                     break;
                 case 'N':
-                    turn_in_place(left);
+                    turn_in_place(right);
                     break;
                 case 'E':
                     if(get_current_vertical_position() == '1'){
@@ -314,10 +314,10 @@ void go_to_start_position(){
                 case 'E':
                     break;
                 case 'S':
-                    turn_in_place(left);
+                    turn_in_place(right);
                     break;
                 case 'N':
-                    turn_in_place(right);
+                    turn_in_place(left);
                     break;
                 case 'W':
                     if(get_current_vertical_position() == '1'){
