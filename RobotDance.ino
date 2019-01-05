@@ -11,8 +11,7 @@ class motor : public Servo
   
 };
 
-enum robot_state
-{
+enum robot_state_enum{
   waiting_for_start_state,
   doing_choreography_state,
   choreography_done_state,
@@ -48,9 +47,17 @@ char current_orientation;
 coordinate dance_choreography [100];
 unsigned long starting_time;
 
+robot_state_enum robot_state;
+parsing_input parsing_state;
+
+unsigned int pointer_at_current_custom_choreography_byte = 512;
+
+
+
 
 #include <EEPROM.h>
 #include <Arduino.h>  // for type definitions
+
 
 template <class T> int EEPROM_write(int ee, const T& value)
 {
@@ -61,13 +68,32 @@ template <class T> int EEPROM_write(int ee, const T& value)
     return i;
 }
 
-template <class T> int EEPROM_read(int ee, T& value)
-{
+template <class T> int EEPROM_read(int ee, T& value){
     byte* p = (byte*)(void*)&value;
     unsigned int i;
     for (i = 0; i < sizeof(value); i++)
           *p++ = EEPROM.read(ee++);
     return i;
+}
+
+
+void setup() {
+  Serial.begin(115200);
+  //ReadDefaultChoreographyFromEEPROM();
+  leftMotor.attach(12,500,2500);
+  rightMotor.attach(13,500,2500);
+
+  pinMode(2,INPUT_PULLUP);
+  
+  pinMode(3,INPUT);
+  pinMode(4,INPUT);
+  pinMode(5,INPUT);
+  pinMode(6,INPUT);
+  pinMode(7,INPUT);
+  pinMode(11,OUTPUT);
+
+  robot_state = waiting_for_start_state;
+  parsing_input parsing_state = reading_starting_coordinate_state;
 }
 
 void readSensors()
@@ -493,18 +519,6 @@ char get_current_vertical_position(){
     }
 }
 
-void setup() {
-  Serial.begin(115200);
-  //ReadDefaultChoreographyFromEEPROM();
-  leftMotor.attach(12,500,2500);
-  rightMotor.attach(13,500,2500);
-  pinMode(3,INPUT);
-  pinMode(4,INPUT);
-  pinMode(5,INPUT);
-  pinMode(6,INPUT);
-  pinMode(7,INPUT);
-  pinMode(11,OUTPUT);
-}
 
 // end of instruction mark
 coordinate eoi_mark = {'q', 'q', 0};
@@ -534,46 +548,166 @@ void ReadDefaultChoreographyFromEEPROM(){
     }
 }
 
-/*
+/**
+ * first char could be character or number
+ * second char is the other one
+ * third char is direction
+ */
+boolean validateStartingCoordinate(char token []){
+    // we are directly checking if input is valid.
+    // ascii:
+    // A - 65
+    // I - 73
+    // a - 97
+    // i - 105
+    // 1 - 49
+    // 9 - 57
+    boolean isFirstLetter=true;
+
+    if((token[0]>='A' && token[0]<='I') || (token[0]>='a' && token[0]<='i')) {
+        isFirstLetter=true;
+
+    }
+    else if(token[0]>='1' && token[0]<='9'){
+        isFirstLetter=false;
+    }
+    else{
+        return false;
+    }
+
+
+    if(isFirstLetter){ // then second must be number
+        if(!(token[1]>='1' && token[1]<='9')){
+            return false;
+        }
+    }
+    else{
+        if(!((token[1]>='A' && token[1]<='I') || (token[1]>='a' && token[1]<='i'))) {
+            return false;
+        }
+
+    }
+
+    //  check for direction, ascii values of  N n, E e, S s, W w
+    if ( token[2]=='N' || token[2]=='n' || token[2]=='E' || token[2]=='e' || token[2]=='S' || token[2]=='s' || token[2]=='W' || token[2]=='w' ) {
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+/**
+ * Function that validates coordinates.
+ * @param token
+ * @return
+ */
+boolean validateCoordinate(char token []){
+    boolean isFirstLetter=true;
+
+    if((token[0]>='A' && token[0]<='I') || (token[0]>='a' && token[0]<='i')) {
+        isFirstLetter=true;
+
+    }
+    else if(token[0]>='1' && token[0]<='9'){
+        isFirstLetter=false;
+    }
+    else{
+        return false;
+    }
+
+    if(isFirstLetter){ // then second must be number
+        if(!(token[1]>='1' && token[1]<='9')){
+            return false;
+        }
+    }
+    else{               // then second must be character
+        if(!((token[1]>='A' && token[1]<='I') || (token[1]>='a' && token[1]<='i'))) {
+            return false;
+        }
+
+    }
+    return true;
+}
+/**
+ *
+ * @param token array of chars, first should be T or t, and then digits
+ * @return
+ */
+boolean validateTime(char token []){
+    if(!(token[0]=='T' || (token[0]=='t' ))) {
+        return false;
+    }
+
+    boolean isNumber=true;
+
+    for(int i=1;i<6;i++){
+        if(token[i]=='\u0000'){
+            break;
+        }
+        else{
+            if(!((token[i]>='0' && token[i]<='9'))){
+                isNumber=false;
+                break;
+            }
+        }
+    }
+    return isNumber;
+}
+/**
  * Can contain:
  * starting position:      A1N
  * position without time:  C4 or 4C
  * time:                   T350
  */
-boolean validateInputToken(char token[], parsing_input parse_state){
-    String s="";
-    int i;
-    for(i=1;i<10;i++){
-      if(token[i]=='X'){
-          break;
-      }
-      else{
-        s+=token[i];
-      }
+boolean validateInputToken(char token[], parsing_input parsing_state){
+    boolean isValid=false;
+
+   
+    switch(parsing_state) {
+        case reading_starting_coordinate_state:
+            Serial.println("State: reading_starting_coordinate_state Token: "+String(token));
+            isValid=validateStartingCoordinate(token);
+            break;
+        case reading_coordinate_state:
+            Serial.println("State: reading_coordinate_state Token: "+String(token));
+            isValid=validateCoordinate(token);
+            break;
+        case reading_time_state:
+            Serial.println("State: reading_time_state Token: "+String(token));
+            isValid=validateTime(token);
+            break;
+        case malformed_input_state:
+            Serial.println("State: malformed_input_state Token: "+String(token));
+            //this should not occur
+            break;
     }
-//    Serial.print(s);
-//    Serial.print(" ");
-//    Serial.print(parse_state);
-//    Serial.println();
-  
-   return true;
+
+    return isValid;
+}
+/**
+Uppercases char if it is lower case letter. If number it lets it be.
+ */
+char upperCase(char c){
+    if((c>='a' && c<='i')) {
+        return  (char)(c-32);
+
+    }
+    else{
+        return c;
+    }
 }
 
 boolean handleSerial() {
-    parsing_input parsing_state = reading_starting_coordinate_state;
     boolean ignoreWhiteSpacesAtStart=true;
     char token[10];
     byte coordinateNumber=0;
     byte counter=0;
 
-//    Serial.println("Started parsing input!");
-    
-    while (Serial.available() > 0) {
+    Serial.println("Started parsing input!");
 
-        Serial.print(Serial.available());
+    while (Serial.available() > 0) { 
+        Serial.println(counter);
         char incomingCharacter = Serial.read();
-        Serial.print(incomingCharacter);
-        Serial.print(Serial.available());
         switch(parsing_state){
             case reading_starting_coordinate_state:
                 // 1. zozaciatku ignoruj whitespacy
@@ -585,25 +719,45 @@ boolean handleSerial() {
                 else if(isAlphaNumeric(incomingCharacter)){
                     ignoreWhiteSpacesAtStart=false;
                     token[counter]=incomingCharacter;
-                    counter++;            
+                    counter++;
                 }
                 else{                                                     // was whitespace after we read first coordinate
                     boolean validStartingPosition = validateInputToken(token, parsing_state);
                     if(validStartingPosition && counter==3 ){
-                        start_position.first = token[0];
-                        start_position.second = token[1]; 
-                        start_position.wait = 0;        
-                        startingOrientation = token[2]; 
+
+                        coordinate start_position_new;
+                        
+                        token[0] = upperCase(token[0]); 
+                        start_position_new.first= token[0];
+                        
+                        token[1] = upperCase(token[1]); 
+                        start_position_new.second=  token[1];
+                                                
+                        char starting_orientation_new = upperCase(token[2]);
+                        
+                        pointer_at_current_custom_choreography_byte += EEPROM_write(pointer_at_current_custom_choreography_byte, starting_orientation_new);
+                        pointer_at_current_custom_choreography_byte += EEPROM_write(pointer_at_current_custom_choreography_byte, start_position_new);
+                          
+                        
 
                         parsing_state=reading_coordinate_state;
                         ignoreWhiteSpacesAtStart=true;
                         counter=0;
-                        memset(token, 0, sizeof(token));
+
+                        
+                        
+                        memset(token, '\0', sizeof(token));
+                        
+                        //TODO: clear array
+//                        token= new char[10];
+
                     }
                     else{
                         parsing_state=malformed_input_state;
+                        Serial.println("Malformed input! Restart robot to input new custom choreography or press button to start default choreography."); 
+                        EEPROM_write(0,false);
                         return false;
-                    } 
+                    }
                 }
                 break;
             case reading_coordinate_state:
@@ -616,23 +770,34 @@ boolean handleSerial() {
                 else if(isAlphaNumeric(incomingCharacter)){
                     ignoreWhiteSpacesAtStart=false;
                     token[counter]=incomingCharacter;
-                    counter++;            
+                    counter++;
                 }
                 else{                                                     // was whitespace after we read first coordinate
                     boolean validCoordinate = validateInputToken(token, parsing_state);
                     if(validCoordinate && counter==2){
-                        dance_choreography[coordinateNumber].first = token[0];
-                        dance_choreography[coordinateNumber].second = token[1];        
+                        coordinate new_coordinate;
                         
+                        token[0] = upperCase(token[0]); 
+                        new_coordinate.first = token[0];
+                        token[1] = upperCase(token[1]); 
+                        new_coordinate.second = token[1];
+
+                        pointer_at_current_custom_choreography_byte += EEPROM_write(pointer_at_current_custom_choreography_byte, new_coordinate.second);
+
                         parsing_state=reading_time_state;
                         ignoreWhiteSpacesAtStart=true;
                         counter=0;
-                        memset(token, 'X', sizeof(token));
+//                            memset(token, 'X', sizeof(token));
+                        //TODO: clear array
+//                        token= new char[10];
+                        memset(token, '\0', sizeof(token));
                     }
                     else{
                         parsing_state=malformed_input_state;
+                        Serial.println("Malformed input! Restart robot to input new custom choreography or press button to start default choreography."); 
+                        EEPROM_write(0,false);
                         return false;
-                    } 
+                    }
                 }
                 break;
             case reading_time_state:
@@ -645,49 +810,63 @@ boolean handleSerial() {
                 else if(isAlphaNumeric(incomingCharacter)){
                     ignoreWhiteSpacesAtStart=false;
                     token[counter]=incomingCharacter;
-                    counter++;            
+                    counter++;
                 }
                 else{                                                     // was whitespace after we read first coordinate
+                    // TODO: ako vie validate aky je dlhy token array?
                     boolean validCoordinate = validateInputToken(token, parsing_state);
                     if(validCoordinate ){
                         // token looks like T350 or T1250
                         int i;
                         String s="";
-                        for(i=1;i<10;i++){
-                          if(token[i]=='X'){
-                              break;
-                          }
-                          else{
-                            s+=token[i];
-                          }
+                        for(i=1;i<6;i++){
+                            if(token[i]=='\u0000'){
+                                break;
+                            }
+                            else{
+                                s+=token[i];
+                            }
                         }
-                        unsigned int waitTime= (unsigned int) s.toInt();
+                    
+//                         int waitTime= ( int) Integer.parseInt(s);
+                         unsigned int waitTime= (unsigned int) s.toInt();
                         dance_choreography[coordinateNumber].wait = waitTime;
-                                        
+
                         parsing_state=reading_coordinate_state;
                         ignoreWhiteSpacesAtStart=true;
                         counter=0;
                         coordinateNumber++;
+                        
+
+//                        memset(token, 'X', sizeof(token));
+                        memset(token, '\0', sizeof(token));
+//                        token= new char[10];
                     }
                     else{
                         parsing_state=malformed_input_state;
+                        Serial.println("Malformed input! Restart robot to input new custom choreography or press button to start default choreography."); 
+                        EEPROM_write(0,false);
                         return false;
-                    } 
+                    }
                 }
 
 
-                
+
                 break;
             case malformed_input_state:
-                // prestan citat zo serial liny
+                Serial.println("Malformed input! Restart robot to input new custom choreography or press button to start default choreography.");                
                 break;
         }
-   }
-
+    }
+    Serial.println("Ended parsing input!");
+    
+    
     return true;
 }
 
-// if valid (zero byte set to 1), return byte 512 as addrss of loaded choreography elde return byte 1 as address of default choreography
+
+
+// if valid (zero byte set to 1), return byte 512 as addrss of loaded choreography else return byte 1 as address of default choreography
 int select_choreography(){
     int reading_byte = 0;
     bool select_loaded_choreography;
@@ -742,69 +921,33 @@ void start_dancing(){
 bool doIt = true;
 // main loop
 void loop() {
-    int wait = 100;
-    //ReadDefaultChoreographyFromEEPROM();
-    start_dancing();
-    //if(doIt)
-    //{
-        //start_position = {'1', 'A', 0};
-        //startingOrientation = 'S';
-        //current_orientation = 'S';
-        //current_position = {'1', 'A', 0};
-        //go_to_coordinate({'3','C'}); //chyba
-        //return;        
-        //go_steps(1);
-        //turn_in_place(left);
-        //turn_in_place(left);
-        //current_orientation = 'S';
-        //go_steps(1);
-        //return;
-        //turn_light_on(1000);
-        //start_position = {'1', 'A', 0};
-        //startingOrientation = 'W';
-        //current_orientation = 'W';
-        //current_position = {'1', 'A', 0};
-        //go_to_coordinate({'B','3', 100});
-        //turn_light_on(1000);
-        //go_to_coordinate({'1','C', 200});
-        //turn_light_on(1000);
-        //go_to_coordinate({'3','C', 300});
-        //turn_light_on(1000);
-        //go_to_coordinate({'C','2', 400});
-        //turn_light_on(1000);
-        //go_to_coordinate({'B','3', 500});
-        //turn_light_on(1000);
-        //go_to_coordinate({'A','3', 600});
-        //turn_light_on(1000);
-        //go_to_coordinate({'1','A', 700});
-        //turn_light_on(1000);
-        //go_to_coordinate({'3','C', 800});
-        //turn_light_on(1000);
-        //go_to_start_position();        
-     //}
-     //doIt = false;
-    return;
-
-  
-    robot_state rs = waiting_for_start_state;
-    switch(rs){
+    switch(robot_state){
+      
+      
       case waiting_for_start_state:
-          boolean useCustomChoreography =  handleSerial();
-          if(useCustomChoreography){
-            // do dance with custom choreography
-            // use custom
+          Serial.println("waiting_for_start_state");
+          
+          handleSerial();
+          if(digitalRead(2)==0){
+            robot_state=doing_choreography_state;
           }
-          else{
-            // do dance with default choreography
-            // TODO: read dance from EEPROM
-          }
-
           break;
       case doing_choreography_state:
+          Serial.println("doing_choreography_state");
+            start_dancing();
           break;
       case choreography_done_state:
+          Serial.println("choreography_done_state");
+          
+          if(digitalRead(2)==0){
+            robot_state=returning_to_start_state;
+            go_to_start_position();
+          }
           break;
       case returning_to_start_state:
+          Serial.println("returning_to_start_state");
           break;
     }
+
+    delay(2000);
 }
