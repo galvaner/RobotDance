@@ -604,14 +604,6 @@ void ReadDefaultChoreographyFromEEPROM(){
  * third char is direction
  */
 boolean validateStartingCoordinate(char token []){
-    // we are directly checking if input is valid.
-    // ascii:
-    // A - 65
-    // I - 73
-    // a - 97
-    // i - 105
-    // 1 - 49
-    // 9 - 57
     boolean isFirstLetter=true;
 
     if((token[0]>='A' && token[0]<='I') || (token[0]>='a' && token[0]<='i')) {
@@ -679,7 +671,7 @@ boolean validateCoordinate(char token []){
     return true;
 }
 /**
- *
+ * Validates time token.
  * @param token array of chars, first should be T or t, and then digits
  * @return
  */
@@ -754,7 +746,7 @@ boolean handleSerial() {
     byte counter=0;
 
 
-    Serial.println("Started parsing input!");
+//    Serial.println("Started parsing input!");
 
     while (Serial.available() > 0) { 
         Serial.println(counter);
@@ -921,7 +913,7 @@ boolean handleSerial() {
                 break;
         }
     }
-    Serial.println("Ended parsing input!");
+//    Serial.println("Ended parsing input!");
     
     
     return true;
@@ -982,7 +974,7 @@ void start_dancing(){
 
 // main loop
 void loop() {
-    switch(robot_state){      
+    switch(robot_state){
       case waiting_for_start_state:
           Serial.println("waiting_for_start_state");
           
