@@ -39,18 +39,24 @@ coordinate eoi_mark = {'q', 'q', 0};
 // initial choreography starts at 1 byte in EEPROM
 // loaded choreography starts at eeprom 512 byte in EEPROM
 void SaveInitialChoreographyToEEPROM(){
-    int number_of_default_instructions = 8;
+    int number_of_default_instructions = 14;
     char startingOrientation = 'W';
     coordinate startingPosition = {'1', 'A', 0};
     coordinate instructions[number_of_default_instructions] = {
-        {'B','3', 70},
-        {'1','C', 140},
-        {'3','C', 210},
-        {'C','2', 280},
-        {'B','3', 350},
-        {'A','3', 420},
-        {'1','A', 490},
-        {'3','C', 800}
+        {'C','1', 50},
+        {'C','3', 100},
+        {'E','3', 150},
+        {'E','1', 200},
+        {'A','1', 300},
+        {'A','5', 400},
+        {'D','4', 500},
+        {'F','6', 600},
+        {'B','4', 700},
+        {'E','2', 850},
+        {'C','1', 1000},
+        {'A','6', 1000},
+        {'B','5', 1100},
+        {'F','1', 1200}
       };
     int writing_byte = 0;
     bool read_from_custom = false;
