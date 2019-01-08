@@ -1,4 +1,6 @@
+// function for servo
 #include <Servo.h>
+
 class motor : public Servo
 {
   public:
@@ -29,10 +31,10 @@ enum parsing_input{
   malformed_input_state
 };
 
-typedef struct coordinate{
-    char first; //x-coordinate
-    char second; //y-coordinate
-    unsigned int wait; //when to move next
+typedef struct coordinate {
+    char first;             // x-coordinate
+    char second;            // y-coordinate
+    unsigned int wait;      //when to move next
 };
 
 int leftSensor,middleSensor,rightSensor, edgeSensors, mostLeftSensor, mostRightSensor;
@@ -53,13 +55,15 @@ unsigned int pointer_at_current_custom_choreography_byte = 512;
 
 coordinate new_coordinate;
 
+// end of instruction mark
+coordinate eoi_mark = {'q', 'q', 0};
 
-
-
+// functions for reading and writing to EEPROM
 #include <EEPROM.h>
-#include <Arduino.h>  // for type definitions
+#include <Arduino.h>  
 
-
+// input: byte where to write, value to write
+// output: size of value in bytes
 template <class T> int EEPROM_write(int ee, const T& value)
 {
     const byte* p = (const byte*)(const void*)&value;
@@ -69,6 +73,8 @@ template <class T> int EEPROM_write(int ee, const T& value)
     return i;
 }
 
+// input: byte where to read, variablie to fill
+// output: size of value in bytes
 template <class T> int EEPROM_read(int ee, T& value){
     byte* p = (byte*)(void*)&value;
     unsigned int i;
@@ -77,26 +83,24 @@ template <class T> int EEPROM_read(int ee, T& value){
     return i;
 }
 
-
 void setup() {
-  Serial.begin(115200);
-  //ReadDefaultChoreographyFromEEPROM();
-  leftMotor.attach(12,500,2500);
-  rightMotor.attach(13,500,2500);
+    Serial.begin(115200);
+    leftMotor.attach(12,500,2500);
+    rightMotor.attach(13,500,2500);
 
-  pinMode(2,INPUT_PULLUP);
-  
-  pinMode(3,INPUT);
-  pinMode(4,INPUT);
-  pinMode(5,INPUT);
-  pinMode(6,INPUT);
-  pinMode(7,INPUT);
-  pinMode(11,OUTPUT);
+    pinMode(2,INPUT_PULLUP);  
+    pinMode(3,INPUT);
+    pinMode(4,INPUT);
+    pinMode(5,INPUT);
+    pinMode(6,INPUT);
+    pinMode(7,INPUT);
+    pinMode(11,OUTPUT);
 
-  robot_state = waiting_for_start_state;
-  parsing_input parsing_state = reading_starting_coordinate_state;
+    robot_state = waiting_for_start_state;
+    parsing_input parsing_state = reading_starting_coordinate_state;
 
-  EEPROM_write(0,false);
+    // use default choreography by default
+    EEPROM_write(0,false);
 }
 
 void readSensors()
@@ -111,11 +115,13 @@ void readSensors()
 void turn_in_place(turning_direction direction){
     bool turningDone = false;
     bool isOnWhite = false;
+    // turn 90 degrees takes about 750ms
     int ignoreMarksWhenTurningStartedMS = 300;
     unsigned long turningStart = millis();
     while(!turningDone)
     {
         if(isOnWhite){
+            // turn the light on when turning
             digitalWrite(11,1);
         }
         readSensors();
@@ -157,6 +163,7 @@ void turn_in_place(turning_direction direction){
     digitalWrite(11,0);
 }
 
+// go straight 1 field (there is useless parameter x because wihout it compiler doesnt want to compile for unknown reason)
 void go(int x) {
     bool isOnWhite = false;
     int numberOfPassedFields = 0;
@@ -194,11 +201,9 @@ void go(int x) {
             numberOfPassedFields++;
         }
     }
-    // the rotation axis has to be in the crossroads
+    // the rotation axis of robot has to be in the crossroads so go litle bit further
     unsigned long timer_start = millis();
     while(millis() - timer_start < 340){
-        //leftMotor.go(MotorPower);
-        //rightMotor.go(-MotorPower);
         readSensors(); 
         if(middleSensor == 0){
             // go straight
@@ -239,32 +244,56 @@ void go_to_coordinate(coordinate target_coordinate){
         horizontal_move(target_coordinate.second);
     }
     while(millis()-starting_time < target_coordinate.wait * 100){
-//        delay(target_coordinate.wait * 100 - millis()-starting_time);
-        int k = 0;
+        leftMotor.go(0);
+        rightMotor.go(0);
     }
 }
 
+// only used for turning to start position
+// because there can be situation when robot is turned into position where is no line to stop him turning
+void turn_in_place_90(turning_direction dir){
+    int turningTime = 720;
+    if(dir == left){
+        unsigned long timer_start = millis();
+                while(millis() - timer_start < turningTime){
+                  leftMotor.go(-MotorPower);
+                  rightMotor.go(-MotorPower);
+                }
+    }
+    if(dir == right){
+        unsigned long timer_start = millis();
+                while(millis() - timer_start < turningTime){
+                  leftMotor.go(MotorPower);
+                  rightMotor.go(MotorPower);
+                }
+    }
+    leftMotor.go(0);
+    rightMotor.go(0);
+}
+
+
 void go_to_start_position(){
     go_to_coordinate(start_position);
+    // default positioning
     switch(current_orientation){
         case 'N':
             switch(startingOrientation){
                 case 'N':
                     break;
                 case 'E':
-                    turn_in_place(right);
+                    turn_in_place_90(right);
                     break;
                 case 'W':
-                    turn_in_place(left);
+                    turn_in_place_90(left);
                     break;
                 case 'S':
                     if(get_current_horizontal_position() == 'A'){
-                        turn_in_place(right);
-                        turn_in_place(right);
+                        turn_in_place_90(right);
+                        turn_in_place_90(right);
                     }
                     else{
-                        turn_in_place(left);
-                        turn_in_place(left);
+                        turn_in_place_90(left);
+                        turn_in_place_90(left);
                     }
                     break;
             }
@@ -274,19 +303,19 @@ void go_to_start_position(){
                 case 'S':
                     break;
                 case 'W':
-                    turn_in_place(right);
+                    turn_in_place_90(right);
                     break;
                 case 'E':
-                    turn_in_place(left);
+                    turn_in_place_90(left);
                     break;
                 case 'N':
                     if(get_current_horizontal_position() == 'A'){
-                        turn_in_place(left);
-                        turn_in_place(left);
+                        turn_in_place_90(left);
+                        turn_in_place_90(left);
                     }
                     else{
-                        turn_in_place(right);
-                        turn_in_place(right);
+                        turn_in_place_90(right);
+                        turn_in_place_90(right);
                     }
                     break;
             }
@@ -296,19 +325,19 @@ void go_to_start_position(){
                 case 'W':
                     break;
                 case 'S':
-                    turn_in_place(left);
+                    turn_in_place_90(left);
                     break;
                 case 'N':
-                    turn_in_place(right);
+                    turn_in_place_90(right);
                     break;
                 case 'E':
                     if(get_current_vertical_position() == '1'){
-                        turn_in_place(right);
-                        turn_in_place(right);
+                        turn_in_place_90(right);
+                        turn_in_place_90(right);
                     }
                     else{
-                        turn_in_place(left);
-                        turn_in_place(left);
+                        turn_in_place_90(left);
+                        turn_in_place_90(left);
                     }
                     break;
             }
@@ -318,19 +347,19 @@ void go_to_start_position(){
                 case 'E':
                     break;
                 case 'S':
-                    turn_in_place(right);
+                    turn_in_place_90(right);
                     break;
                 case 'N':
-                    turn_in_place(left);
+                    turn_in_place_90(left);
                     break;
                 case 'W':
                     if(get_current_vertical_position() == '1'){
-                        turn_in_place(left);
-                        turn_in_place(left);
+                        turn_in_place_90(left);
+                        turn_in_place_90(left);
                     }
                     else{
-                        turn_in_place(right);
-                        turn_in_place(right);
+                        turn_in_place_90(right);
+                        turn_in_place_90(right);
                     }
                     break;
             }
@@ -339,6 +368,7 @@ void go_to_start_position(){
     current_orientation = startingOrientation;
 }
 
+// go multiple steps straight
 void go_steps(int numberOfFieldsToGo){
     for(int i=0; i < numberOfFieldsToGo; i++){
         go(1);
@@ -434,6 +464,15 @@ char get_current_horizontal_position(){
     }
 }
 
+char get_start_horizontal_position(){
+    if(start_position.first >= 'A' && start_position.first <= 'Z'){
+        return start_position.first;
+    }
+    else{
+        return start_position.second;
+    }
+}
+
 void vertical_move(char target_position){
     char current_horizontal_position = get_current_horizontal_position();
     char current_vertical_position = get_current_vertical_position();
@@ -523,10 +562,16 @@ char get_current_vertical_position(){
     }
 }
 
+char get_start_vertical_position(){
+    if(start_position.first >= '1' && start_position.first <= '9'){
+        return start_position.first;
+    }
+    else{
+        return start_position.second;
+    }
+}
 
-// end of instruction mark
-coordinate eoi_mark = {'q', 'q', 0};
-
+// debug function for printing out coordinate
 void PrintCoordinate(coordinate coord){
   Serial.print(coord.first);
   Serial.print(' ');
@@ -536,6 +581,7 @@ void PrintCoordinate(coordinate coord){
   Serial.println(' ');
 }
 
+// debug function
 void ReadDefaultChoreographyFromEEPROM(){
     int reading_byte = 1;
     char startingOrientation;
@@ -890,6 +936,7 @@ int select_choreography(){
     }
 }
 
+// debug function
 void turn_light_on(int timeInMs){
     unsigned int start = millis();
     while((millis()-start) < timeInMs){
@@ -903,11 +950,10 @@ void start_dancing(){
     int reading_byte = select_choreography();
     reading_byte += EEPROM_read(reading_byte, startingOrientation);
     current_orientation = startingOrientation;
-    //Serial.print(reading_byte);
     Serial.println("reading starting orientation");
     Serial.println(startingOrientation);
     coordinate current_coordinate = {'a','a',0};
-    // read starting position
+    // read starting position (1 = default, 512 = custom)
     reading_byte += EEPROM_read(reading_byte, current_coordinate);
     start_position = current_coordinate;
     Serial.println("start position...");
@@ -920,14 +966,12 @@ void start_dancing(){
         go_to_coordinate(current_coordinate);
         Serial.println("reading coordinate...");
         reading_byte += EEPROM_read(reading_byte, current_coordinate);
-        //Serial.print(reading_byte);
         PrintCoordinate(current_coordinate);        
     }
     leftMotor.go(0);
     rightMotor.go(0);
 }
 
-bool doIt = true;
 // main loop
 void loop() {
     switch(robot_state){
@@ -958,6 +1002,5 @@ void loop() {
           Serial.println("returning_to_start_state");
           break;
     }
-
 //   delay(2000);
 }
