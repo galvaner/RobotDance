@@ -40,7 +40,7 @@ coordinate eoi_mark = {'q', 'q', 0};
 // loaded choreography starts at eeprom 512 byte in EEPROM
 void SaveInitialChoreographyToEEPROM(){
     int number_of_default_instructions = 14;
-    char startingOrientation = 'W';
+    char startingOrientation = 'N';
     coordinate startingPosition = {'1', 'A', 0};
     coordinate instructions[number_of_default_instructions] = {
         {'C','1', 50},
@@ -50,13 +50,13 @@ void SaveInitialChoreographyToEEPROM(){
         {'A','1', 300},
         {'A','5', 400},
         {'D','4', 500},
-        {'F','6', 600},
+        {'E','5', 600},
         {'B','4', 700},
         {'E','2', 850},
         {'C','1', 1000},
-        {'A','6', 1000},
+        {'A','5', 1000},
         {'B','5', 1100},
-        {'F','1', 1200}
+        {'E','1', 1200}
       };
     int writing_byte = 0;
     bool read_from_custom = false;
