@@ -288,29 +288,6 @@ void go_to_coordinate(coordinate target_coordinate){
     }
 }
 
-// only used for turning to start position
-// because there can be situation when robot is turned into position where is no line to stop him turning
-void turn_in_place_90(turning_direction dir){
-    int turningTime = 720;
-    if(dir == left){
-        unsigned long timer_start = millis();
-                while(millis() - timer_start < turningTime){
-                  leftMotor.go(-MotorPower);
-                  rightMotor.go(-MotorPower);
-                }
-    }
-    if(dir == right){
-        unsigned long timer_start = millis();
-                while(millis() - timer_start < turningTime){
-                  leftMotor.go(MotorPower);
-                  rightMotor.go(MotorPower);
-                }
-    }
-    leftMotor.go(0);
-    rightMotor.go(0);
-}
-
-
 void go_to_start_position(){
     go_to_coordinate(start_position);
     // default positioning
@@ -320,19 +297,19 @@ void go_to_start_position(){
                 case 'N':
                     break;
                 case 'E':
-                    turn_in_place_90(right);
+                    turn_in_place(right);
                     break;
                 case 'W':
-                    turn_in_place_90(left);
+                    turn_in_place(left);
                     break;
                 case 'S':
                     if(get_current_horizontal_position() == 'A'){
-                        turn_in_place_90(right);
-                        turn_in_place_90(right);
+                        turn_in_place(right);
+                        turn_in_place(right);
                     }
                     else{
-                        turn_in_place_90(left);
-                        turn_in_place_90(left);
+                        turn_in_place(left);
+                        turn_in_place(left);
                     }
                     break;
             }
@@ -342,19 +319,19 @@ void go_to_start_position(){
                 case 'S':
                     break;
                 case 'W':
-                    turn_in_place_90(right);
+                    turn_in_place(right);
                     break;
                 case 'E':
-                    turn_in_place_90(left);
+                    turn_in_place(left);
                     break;
                 case 'N':
                     if(get_current_horizontal_position() == 'A'){
-                        turn_in_place_90(left);
-                        turn_in_place_90(left);
+                        turn_in_place(left);
+                        turn_in_place(left);
                     }
                     else{
-                        turn_in_place_90(right);
-                        turn_in_place_90(right);
+                        turn_in_place(right);
+                        turn_in_place(right);
                     }
                     break;
             }
@@ -364,19 +341,19 @@ void go_to_start_position(){
                 case 'W':
                     break;
                 case 'S':
-                    turn_in_place_90(left);
+                    turn_in_place(left);
                     break;
                 case 'N':
-                    turn_in_place_90(right);
+                    turn_in_place(right);
                     break;
                 case 'E':
                     if(get_current_vertical_position() == '1'){
-                        turn_in_place_90(right);
-                        turn_in_place_90(right);
+                        turn_in_place(right);
+                        turn_in_place(right);
                     }
                     else{
-                        turn_in_place_90(left);
-                        turn_in_place_90(left);
+                        turn_in_place(left);
+                        turn_in_place(left);
                     }
                     break;
             }
@@ -386,19 +363,19 @@ void go_to_start_position(){
                 case 'E':
                     break;
                 case 'S':
-                    turn_in_place_90(right);
+                    turn_in_place(right);
                     break;
                 case 'N':
-                    turn_in_place_90(left);
+                    turn_in_place(left);
                     break;
                 case 'W':
                     if(get_current_vertical_position() == '1'){
-                        turn_in_place_90(left);
-                        turn_in_place_90(left);
+                        turn_in_place(left);
+                        turn_in_place(left);
                     }
                     else{
-                        turn_in_place_90(right);
-                        turn_in_place_90(right);
+                        turn_in_place(right);
+                        turn_in_place(right);
                     }
                     break;
             }
