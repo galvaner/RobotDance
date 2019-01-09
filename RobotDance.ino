@@ -93,9 +93,7 @@ void SaveInitialChoreographyToEEPROM(){
         {'B','5', 1100},
         {'E','1', 1200}
       };
-    int writing_byte = 0;
-    bool read_from_custom = false;
-    writing_byte += EEPROM_write(writing_byte, read_from_custom);
+    int writing_byte = 1;
     writing_byte += EEPROM_write(writing_byte, startingOrientation);
     Serial.print(writing_byte);
     Serial.println(startingOrientation);
@@ -139,7 +137,11 @@ void setup() {
 
     // use default choreography by default
     SaveInitialChoreographyToEEPROM();
-    EEPROM_write(0,false);
+    char curently_set_choreography;
+    EEPROM_read(0, curently_set_choreography);
+    if(curently_set_choreography != 'C'){
+        EEPROM_write(0,'D');
+    }
 }
 
 void readSensors()
@@ -808,7 +810,7 @@ boolean handleSerial() {
                         ignoreWhiteSpacesAtStart=true;
                         counter=0;
 
-                        EEPROM_write(0,true);
+                        EEPROM_write(0,'C');
                         
                         memset(token, 'X', sizeof(token));
                         
@@ -819,7 +821,7 @@ boolean handleSerial() {
                     else{
                         parsing_state=malformed_input_state;
                         Serial.println("Malformed input! Restart robot to input new custom choreography or press button to start default choreography."); 
-                        EEPROM_write(0,false);
+                        EEPROM_write(0,'D');
                         return false;
                     }
                 }
@@ -856,7 +858,7 @@ boolean handleSerial() {
                     else{
                         parsing_state=malformed_input_state;
                         Serial.println("Malformed input! Restart robot to input new custom choreography or press button to start default choreography."); 
-                        EEPROM_write(0,false);
+                        EEPROM_write(0,'D');
                         return false;
                     }
                 }
@@ -916,7 +918,7 @@ boolean handleSerial() {
                     else{
                         parsing_state=malformed_input_state;
                         Serial.println("Malformed input! Restart robot to input new custom choreography or press button to start default choreography."); 
-                        EEPROM_write(0,false);
+                        EEPROM_write(0,'D');
                         return false;
                     }
                 }
@@ -944,7 +946,7 @@ int select_choreography(){
     EEPROM_read(reading_byte, select_loaded_choreography);
     Serial.print("Zero byte: ");
     Serial.println(select_loaded_choreography);
-    if(select_loaded_choreography){
+    if(select_loaded_choreography == 'C'){
         return 512;
     } 
     else{
